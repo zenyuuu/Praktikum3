@@ -1,85 +1,58 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Praktikum Cloud — Landing Page</title>
-    <link rel="stylesheet" href="assets/style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-</head>
-<body>
-    <nav class="navbar">
-        <div class="container nav-inner">
-            <a href="index.php" class="logo">Cloud<span>Praktikum</span></a>
-            <ul class="nav-links">
-                <li><a href="index.php" class="active">Beranda</a></li>
-                <li><a href="about.php">Tentang</a></li>
-                <li><a href="info.php">Server Info</a></li>
-                <li><a href="#fitur" class="btn-nav">Fitur</a></li>
-            </ul>
-        </div>
-    </nav>
+<?php
+require __DIR__ . '/config.php';
 
-    <header class="hero">
-        <div class="container hero-content">
-            <p class="badge">Azure App Service · PHP Native</p>
-            <h1>Deploy Website PHP<br>ke <span class="gradient">Azure Cloud</span></h1>
-            <p class="subtitle">
-                Project sederhana untuk modul praktikum Komputasi Awan.
-                Tanpa database, siap di-deploy lewat GitHub atau VS Code.
-            </p>
-            <div class="hero-actions">
-                <a href="info.php" class="btn btn-primary">Lihat Info Server</a>
-                <a href="about.php" class="btn btn-outline">Tentang Project</a>
-            </div>
-        </div>
-        <div class="hero-glow"></div>
-    </header>
+$q = trim($_GET['q'] ?? '');
+$sql = 'SELECT * FROM catatan';
+$params = [];
+if ($q !== '') {
+    $sql .= ' WHERE judul LIKE ? OR mata_kuliah LIKE ?';
+    $params = ["%$q%", "%$q%"];
+}
+$sql .= ' ORDER BY id DESC';
+$st = db()->prepare($sql);
+$st->execute($params);
+$rows = $st->fetchAll();
 
-    <section id="fitur" class="features">
-        <div class="container">
-            <h2 class="section-title">Fitur Project</h2>
-            <p class="section-desc">Semua yang dibutuhkan untuk lulus modul deploy Azure App Service.</p>
-            <div class="feature-grid">
-                <div class="card">
-                    <div class="card-icon">☁️</div>
-                    <h3>Azure Ready</h3>
-                    <p>Struktur folder root-level <code>index.php</code>, cocok untuk App Service Linux + PHP 8.x.</p>
-                </div>
-                <div class="card">
-                    <div class="card-icon">🚀</div>
-                    <h3>CI/CD Friendly</h3>
-                    <p>Bisa dihubungkan ke GitHub Actions lewat Deployment Center atau deploy langsung dari VS Code.</p>
-                </div>
-                <div class="card">
-                    <div class="card-icon">📱</div>
-                    <h3>Responsive UI</h3>
-                    <p>Tampilan modern, mobile-friendly, pakai pure CSS tanpa framework berat.</p>
-                </div>
-                <div class="card">
-                    <div class="card-icon">🔧</div>
-                    <h3>Server Info</h3>
-                    <p>Halaman info menampilkan versi PHP, OS, dan environment Azure secara dinamis.</p>
-                </div>
-            </div>
-        </div>
-    </section>
+$pesan = [
+    'created' => 'Catatan berhasil ditambahkan.',
+    'updated' => 'Catatan berhasil diperbarui.',
+    'deleted' => 'Catatan berhasil dihapus.',
+];
+$msg = $pesan[$_GET['msg'] ?? ''] ?? null;
 
-    <section class="cta">
-        <div class="container cta-box">
-            <h2>Siap di-deploy</h2>
-            <p>Push ke GitHub → hubungkan di Deployment Center → website live di <code>*.azurewebsites.net</code></p>
-            <a href="info.php" class="btn btn-primary">Cek Environment</a>
-        </div>
-    </section>
+$title = 'Catatan Kuliah';
+include __DIR__ . '/header.php';
+?>
+<?php if ($msg): ?><div class="ok"><?= e($msg) ?></div><?php endif; ?>
 
-    <footer class="footer">
-        <div class="container footer-inner">
-            <p>Modul Praktikum Komputasi Awan · Semester Ganjil 2026–2027</p>
-            <p class="muted">PHP <?= PHP_VERSION ?> · <?= PHP_OS ?></p>
-        </div>
-    </footer>
-</body>
-</html>
+<form class="bar" method="get">
+  <input name="q" placeholder="Cari judul / mata kuliah..." value="<?= e($q) ?>">
+  <button class="btn gray" type="submit">Cari</button>
+  <a class="btn" href="create.php">+ Tambah Catatan</a>
+</form>
+
+<?php if (!$rows): ?>
+  <div class="card">Belum ada catatan.</div>
+<?php endif; ?>
+
+<?php foreach ($rows as $r): ?>
+  <div class="card">
+    <div class="row">
+      <div>
+        <strong><?= e($r['judul']) ?></strong>
+        <span class="tag"><?= e($r['mata_kuliah']) ?></span>
+        <div class="meta"><?= e($r['created_at']) ?></div>
+      </div>
+      <div class="actions">
+        <a class="btn sm" href="edit.php?id=<?= (int) $r['id'] ?>">Edit</a>
+        <form class="inline" method="post" action="delete.php" onsubmit="return confirm('Hapus catatan ini?')">
+          <input type="hidden" name="id" value="<?= (int) $r['id'] ?>">
+          <button class="btn red sm" type="submit">Hapus</button>
+        </form>
+      </div>
+    </div>
+    <p><?= nl2br(e($r['isi'])) ?></p>
+  </div>
+<?php endforeach; ?>
+
+<?php include __DIR__ . '/footer.php'; ?>
